@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Captura de Pantalla Cifrada</title>
+</head>
+<body>
+<h1>Captura de Pantalla</h1>
+<img id="screenshot" alt="Captura" style="border:1px solid black; width: 80%;">
+
+<script>
+    async function fetchScreenshot() {
+        try {
+            // Hacer la petición al servidor
+            const response = await fetch("http://localhost:7654/screenshot");
+            if (!response.ok) throw new Error("Error al obtener la captura");
+
+            // Leer el array de bytes
+            const data = await response.arrayBuffer();
+            const view = new DataView(data);
+
+console.log("FINS AQUI OK 3424234");
+
+            // Leer el tamaño de la clave cifrada
+            let offset = 0;
+            const keySize = view.getInt32(offset);
+            offset += 4;
+
+            // Extraer la clave cifrada
+            const encryptedKey = new Uint8Array(data.slice(offset, offset + keySize));
+            offset += keySize;
+
+            // Leer el tamaño de la imagen cifrada
+            const imageSize = view.getInt32(offset);
+            offset += 4;
+
+            // Extraer la imagen cifrada
+            const encryptedImage = new Uint8Array(data.slice(offset, offset + imageSize));
+
+console.log("FINS AQUI OK 99999999");
+
+            // 🔐 1. Descifrar la clave AES con RSA (se necesita la clave privada del usuario)
+            const privateKeyPem = pemToArrayBuffer() ;
+
+            const privateKey = await window.crypto.subtle.importKey(
+                    "pkcs8",
+                    privateKeyPem,
+                    { name: "RSA-OAEP", hash: "SHA-256" },
+                    true,
+                    ["decrypt"]
+                );
+
+console.log("FINS AQUI OK 2222222222222222");
+            const aesKeyBuffer = await window.crypto.subtle.decrypt(
+                { name: "RSA-OAEP" },
+                privateKey,
+                encryptedKey
+            );
+console.log("FINS AQUI OK 3333333333333333");
+            const aesKey = await window.crypto.subtle.importKey(
+                "raw",
+                aesKeyBuffer,
+                { name: "AES-CBC" },
+                true,
+                ["decrypt"]
+            );
+
+            console.log("FINS AQUI OK 111111111111111");
+
+            // 🔐 2. Descifrar la imagen con AES
+            const iv = new Uint8Array(16); // IV en 0s
+            const decryptedImageBuffer = await window.crypto.subtle.decrypt(
+                { name: "AES-CBC", iv: iv },
+                aesKey,
+                encryptedImage
+            );
+
+console.log("FINS AQUI OK");
+            // Convertir a Blob y mostrar en <img>
+            const blob = new Blob([decryptedImageBuffer], { type: "image/png" });
+            document.getElementById("screenshot").src = URL.createObjectURL(blob);
+console.log("ESTO FALLA");
+
+        } catch (error) {
+            console.error("Error:", error);
+        }
+    }
+
+    function pemToArrayBuffer() {
+            const pem = `%%%keyText%%%`;
+            const base64 = pem.replace(/-----(BEGIN|END) PRIVATE KEY-----/g, "").replace(/\s+/g, "");
+            const binary = atob(base64);
+            const array = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                array[i] = binary.charCodeAt(i);
+            }
+            return array.buffer;
+        }
+
+    // Pedir la imagen cada 5 segundos
+    fetchScreenshot();
+    setInterval(fetchScreenshot, 2000);
+</script>
+</body>
+</html>
