@@ -13,7 +13,7 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import javax.crypto.Cipher;
 
-public class Teacher {
+public class Student {
     private final static String publicKeyPath = "/etc/wateacher/public_key.pem";
     private static PublicKey publicKey;
 
